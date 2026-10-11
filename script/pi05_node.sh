@@ -12,6 +12,7 @@ for ((index=0;index<${#runner_args[@]};index++)); do
     if [[ "${runner_args[index]}" == "--rank" ]]; then rank="${runner_args[index+1]}"; fi
     if [[ "${runner_args[index]}" == "--ranks" ]]; then total_ranks="${runner_args[index+1]}"; fi
     if [[ "${runner_args[index]}" == "--xla-flags" ]]; then execution_flags="${runner_args[index+1]}"; fi
+    if [[ "${runner_args[index]}" == --xla-flags=* ]]; then execution_flags="${runner_args[index]#--xla-flags=}"; fi
 done
 if [[ -n "$output_dir" ]]; then
     mkdir -p "$output_dir"
@@ -24,11 +25,17 @@ export PYTHONUNBUFFERED=1 OMP_NUM_THREADS=1 OPENBLAS_NUM_THREADS=1 MKL_NUM_THREA
 export XLA_PYTHON_CLIENT_PREALLOCATE=true
 export XLA_PYTHON_CLIENT_MEM_FRACTION=0.8
 export JAX_PLATFORMS=cuda,cpu
-export XLA_FLAGS="${XLA_FLAGS:-} $execution_flags"
+combined_flags="${XLA_FLAGS:-}"
+if [[ -n "$execution_flags" ]]; then combined_flags="${combined_flags:+$combined_flags }$execution_flags"; fi
 if ((total_ranks>1)); then
     # Avoid compiler autotuning exchanging results through distributed KVS.
     # Every rank autotunes locally; model math and compute dtype are unchanged.
-    export XLA_FLAGS="${XLA_FLAGS:-} --xla_gpu_shard_autotuning=false"
+    combined_flags="${combined_flags:+$combined_flags }--xla_gpu_shard_autotuning=false"
+fi
+if [[ -n "${combined_flags//[[:space:]]/}" ]]; then
+    export XLA_FLAGS="$combined_flags"
+else
+    unset XLA_FLAGS
 fi
 if [[ " $* " == *" --mode benchmark "* ]]; then
     export NCCL_DEBUG=INFO

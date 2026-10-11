@@ -45,7 +45,7 @@ def command(variant,mode,output,reference,export=False):
     if export:
         argv.append("--export-reference")
     if variant.get("xla_flags"):
-        argv += ["--xla-flags",variant["xla_flags"]]
+        argv.append("--xla-flags="+variant["xla_flags"])
     return argv
 
 
