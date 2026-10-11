@@ -150,3 +150,6 @@ Evaluation also accepts `--output_dir`, `--test_num` (default 100), and
 metrics, and requested videos are retained in the chosen output directory.
 The default evaluation output directory is under `/tmp/bicoord-eval/`.
 These options do not change the policy or the default 100-rollout protocol.
+For Pi0, `--resume True` continues an existing output directory from its last
+completed episode, preserving counters, seed progression, and policy sampling
+keys. Use the same checkpoint and evaluation options when resuming.

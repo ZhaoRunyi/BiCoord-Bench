@@ -128,6 +128,19 @@ def main(usr_args):
     save_dir.mkdir(parents=True, exist_ok=True)
     args["eval_output_dir"] = str(save_dir)
     args["video_episodes"] = int(usr_args.get("video_episodes", -1))
+    resume_records = []
+    records_path = save_dir / "episodes.jsonl"
+    if records_path.exists():
+        if not usr_args.get("resume", False):
+            raise ValueError("Output already contains episodes; use --resume True to continue")
+        previous_config = json.loads((save_dir / "config.json").read_text())
+        for key, value in previous_config.items():
+            if key not in {"resume", "test_num"} and usr_args.get(key) != value:
+                raise ValueError(f"Cannot resume with changed option: {key}")
+        resume_records = [json.loads(line) for line in records_path.read_text().splitlines()]
+        for index, record in enumerate(resume_records):
+            if record["episode"] != index or (index and record["seed"] <= resume_records[index - 1]["seed"]):
+                raise ValueError("Episode records are not consecutive with increasing seeds")
     (save_dir / "config.json").write_text(json.dumps(usr_args, indent=2, default=str) + "\n")
 
     if args["eval_video_log"]:
@@ -168,9 +181,24 @@ def main(usr_args):
     test_num = int(usr_args.get("test_num", 100))
     if test_num < 1:
         raise ValueError("test_num must be positive")
+    if len(resume_records) > test_num:
+        raise ValueError("test_num is smaller than the completed episode count")
     topk = 1
 
+    print(f"Resuming {len(resume_records)}/{test_num} completed episodes" if resume_records else
+          f"Starting {test_num} episodes", flush=True)
     model = get_model(usr_args)
+    if resume_records:
+        # Pi0's policy advances its JAX key once per action chunk. Restore that
+        # sequence so restarting a worker does not reuse earlier sampling keys.
+        if policy_name != "pi0":
+            raise ValueError("Policy RNG restoration is currently supported only for pi0")
+        import jax
+        chunk_size = int(model.pi0_step)
+        calls = sum((record["steps"] + chunk_size - 1) // chunk_size for record in resume_records)
+        for _ in range(calls):
+            model.policy._rng, _ = jax.random.split(model.policy._rng)
+        print(f"Restored policy RNG after {calls} inference calls", flush=True)
     st_seed, suc_num = eval_policy(task_name,
                                    TASK_ENV,
                                    args,
@@ -178,7 +206,8 @@ def main(usr_args):
                                    st_seed,
                                    test_num=test_num,
                                    video_size=video_size,
-                                   instruction_type=instruction_type)
+                                   instruction_type=instruction_type,
+                                   resume_records=resume_records)
     suc_nums.append(suc_num)
 
     topk_success_rate = sorted(suc_nums, reverse=True)[:topk]
@@ -201,25 +230,27 @@ def eval_policy(task_name,
                 st_seed,
                 test_num=100,
                 video_size=None,
-                instruction_type=None):
+                instruction_type=None,
+                resume_records=None):
     print(f"\033[34mTask Name: {args['task_name']}\033[0m")
     print(f"\033[34mPolicy Name: {args['policy_name']}\033[0m")
 
     expert_check = True
-    TASK_ENV.suc = 0
-    TASK_ENV.test_num = 0
-    stage_eval_scores = []
-    traj_len = 0
+    resume_records = resume_records or []
+    TASK_ENV.suc = sum(record["success"] for record in resume_records)
+    TASK_ENV.test_num = len(resume_records)
+    stage_eval_scores = [record["stage_score"] for record in resume_records]
+    traj_len = sum(record["steps"] for record in resume_records if record["success"])
 
-    now_id = 0
-    succ_seed = 0
-    suc_test_seed_list = []
+    now_id = len(resume_records)
+    succ_seed = now_id
+    suc_test_seed_list = [record["seed"] for record in resume_records]
 
     policy_name = args["policy_name"]
     eval_func = eval_function_decorator(policy_name, "eval")
     reset_func = eval_function_decorator(policy_name, "reset_model")
 
-    now_seed = st_seed
+    now_seed = resume_records[-1]["seed"] + 1 if resume_records else st_seed
     task_total_reward = 0
     clear_cache_freq = args["clear_cache_freq"]
 
