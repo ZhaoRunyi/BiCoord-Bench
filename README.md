@@ -35,6 +35,9 @@ See [the uv setup guide](docs/uv.md) for environment layout, checkpoint paths,
 commands, and GPU checks. The original [RoboTwin installation guide](https://robotwin-platform.github.io/doc/usage/robotwin-install.html)
 describes the underlying simulator and system requirements.
 
+See [the all-task π0.5 training guide](docs/pi05_bicoord.md) for the JAX recipe,
+physical input conventions, resumable checkpoints, PBS benchmarks and evaluation.
+
 【Step 3】Download Additional Assets
 
 We have modified some objects in the original RoboTwin-OD dataset. Please download the additional objects at https://huggingface.co/datasets/GradiusTwinbee/BiCoord/blob/main/objects.zip and extract them to `BiCoord-Bench/assets/objects`.

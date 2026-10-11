@@ -191,8 +191,8 @@ def main(usr_args):
     if resume_records:
         # Pi0's policy advances its JAX key once per action chunk. Restore that
         # sequence so restarting a worker does not reuse earlier sampling keys.
-        if policy_name != "pi0":
-            raise ValueError("Policy RNG restoration is currently supported only for pi0")
+        if policy_name not in {"pi0", "pi05_bicoord"}:
+            raise ValueError("Policy RNG restoration is currently supported only for pi0/pi05_bicoord")
         import jax
         chunk_size = int(model.pi0_step)
         calls = sum((record["steps"] + chunk_size - 1) // chunk_size for record in resume_records)
