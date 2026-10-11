@@ -19,6 +19,7 @@ import importlib
 import argparse
 import pdb
 import json
+import time
 
 from generate_episode_instructions import *
 
@@ -122,8 +123,12 @@ def main(usr_args):
     else:
         embodiment_name = str(embodiment_type[0]) + "+" + str(embodiment_type[1])
 
-    save_dir = Path(f"eval_result/{task_name}/{policy_name}/{task_config}/{ckpt_setting}/{current_time}")
+    save_dir = Path(usr_args.get("output_dir") or
+                    f"/tmp/bicoord-eval/{task_name}/{policy_name}/{task_config}/{ckpt_setting}/{current_time}")
     save_dir.mkdir(parents=True, exist_ok=True)
+    args["eval_output_dir"] = str(save_dir)
+    args["video_episodes"] = int(usr_args.get("video_episodes", -1))
+    (save_dir / "config.json").write_text(json.dumps(usr_args, indent=2, default=str) + "\n")
 
     if args["eval_video_log"]:
         video_save_dir = save_dir
@@ -160,7 +165,9 @@ def main(usr_args):
 
     st_seed = 100000 * (1 + seed)
     suc_nums = []
-    test_num = 100
+    test_num = int(usr_args.get("test_num", 100))
+    if test_num < 1:
+        raise ValueError("test_num must be positive")
     topk = 1
 
     model = get_model(usr_args)
@@ -219,6 +226,7 @@ def eval_policy(task_name,
     args["eval_mode"] = True
 
     while succ_seed < test_num:
+        episode_started = time.monotonic()
         states = []
         render_freq = args["render_freq"]
         args["render_freq"] = 0
@@ -236,8 +244,11 @@ def eval_policy(task_name,
                 now_seed += 1
                 args["render_freq"] = render_freq
                 continue
+            except (FileNotFoundError, ImportError, AttributeError):
+                TASK_ENV.close_env()
+                raise
             except Exception as e:
-                # stack_trace = traceback.format_exc()
+                traceback.print_exc()
                 # print(" -------------")
                 # print("Error: ", e)
                 # print(" -------------")
@@ -257,7 +268,11 @@ def eval_policy(task_name,
 
         args["render_freq"] = render_freq
 
-        TASK_ENV.setup_demo(now_ep_num=now_id, seed=now_seed, is_test=True, **args)
+        policy_args = dict(args)
+        video_limit = args.get("video_episodes", -1)
+        if video_limit >= 0 and now_id >= video_limit:
+            policy_args.pop("eval_video_save_dir", None)
+        TASK_ENV.setup_demo(now_ep_num=now_id, seed=now_seed, is_test=True, **policy_args)
         episode_info_list = [episode_info["info"]]
         results = generate_episode_descriptions(args["task_name"], episode_info_list, test_num)
         instruction = np.random.choice(results[0][instruction_type])
@@ -316,6 +331,13 @@ def eval_policy(task_name,
             print("\033[91mFail!\033[0m")
 
         stage_eval_scores.append(TASK_ENV.stage_eval_score)
+        with open(Path(args["eval_output_dir"]) / "episodes.jsonl", "a", encoding="utf-8") as record:
+            record.write(json.dumps({
+                "episode": now_id, "seed": now_seed, "success": bool(succ),
+                "stage_score": float(TASK_ENV.stage_eval_score),
+                "steps": int(TASK_ENV.take_action_cnt), "instruction": instruction,
+                "elapsed_seconds": time.monotonic() - episode_started,
+            }, default=str) + "\n")
 
         now_id += 1
         TASK_ENV.close_env(clear_cache=((succ_seed + 1) % clear_cache_freq == 0))
@@ -340,8 +362,12 @@ def eval_policy(task_name,
     print("Trajectory Length (TL):", TL)
     print("Copy metrics here for convenience:")
     print(SR, SSR, TL)
-    with open(f"{TASK_ENV.eval_video_path}/stage_eval_scores.json", "w", encoding="utf-8") as f:
+    with open(Path(args["eval_output_dir"]) / "stage_eval_scores.json", "w", encoding="utf-8") as f:
         json.dump(stage_eval_scores, f, ensure_ascii=False, indent=2)
+    (Path(args["eval_output_dir"]) / "metrics.json").write_text(json.dumps({
+        "task": task_name, "episodes": TASK_ENV.test_num, "successes": TASK_ENV.suc,
+        "SR": SR, "SSR": SSR, "TL": TL, "seeds": suc_test_seed_list,
+    }, indent=2) + "\n")
 
 
 

@@ -6,7 +6,7 @@ Use Linux x86_64, `uv`, an NVIDIA driver compatible with CUDA 12.4, a CUDA 12.4
 toolkit containing `nvcc`, and GCC 9 or newer. No Conda environment is required.
 The setup script selects a complete `/opt/rh/gcc-toolset-9` when available.
 On an EL8 host with GCC 8 it extracts official Rocky Linux GCC 9 RPMs into
-sibling `.toolchains/gcc9`, without installing system packages. Otherwise set
+`zvi/gcc9` (or `BICOORD_TOOLCHAIN_ROOT`), without installing system packages. Otherwise set
 `CC` and `CXX` to a suitable compiler. Python 3.11 is installed by uv.
 
 | Environment | Project | Virtual environment |
@@ -50,10 +50,17 @@ export MAX_JOBS=4
 bash script/setup_uv.sh all
 ```
 
-Use `sim`, `pi0`, or `pi05` instead of `all` to prepare one environment. uv's
-package cache and managed Python installations default to sibling `.uv-cache`
-and `.uv-python` directories. `UV_CACHE_DIR` and `UV_PYTHON_INSTALL_DIR` can
-override these locations. `CC`, `CXX`, `CUDA_HOME`, and `MAX_JOBS` are respected.
+Use `sim`, `pi0`, or `pi05` instead of `all` to prepare one environment.
+The workspace maintains an independent uv installation at `zvi/.uv`: its
+`bin/uv` wrapper uses `cache/`, `python/`, and `tools/` under that root.
+Scratch files default to `/tmp/zvi-uv-$UID`.
+The project virtual environments stay at the three locations listed above.
+`script/uv_env.sh` selects this installation automatically; `UV_ROOT` can select
+a different workspace uv root. For an interactive shell, source
+`/home/MLTL-INTERN/shaoyang/zvi/.uv/env.sh`. Account-wide uv settings are untouched.
+`CC`, `CXX`, `CUDA_HOME`, and `MAX_JOBS` are respected. Check videos and environment
+records default to `/tmp/zvi-bicoord-uv-check/`; set `BICOORD_ARTIFACT_DIR`
+to override this for a particular run.
 
 The installer checks simulation imports, cuRobo imports, PyTorch3D CUDA sampling,
 and each OpenPI training/data-loader configuration. These checks do not establish
@@ -85,11 +92,10 @@ workspace/
 ├── data/BiCoord/<task>/demo_clean/
 └── ckpts/
     ├── pi05_base/{params,assets}/
-    └── BiCoord/
-        ├── pi0/pi0_base_aloha_robotwin_full/
-        │   ├── <task>/30000/{params,assets}/
-        │   └── pi0/50000/{params,assets,train_state}/
-        └── pi05/                   # Future Pi0.5 fine-tuning outputs
+    ├── BiCoord_pi0/pi0_base_aloha_robotwin_full/
+    │   ├── <task>/30000/{params,assets}/
+    │   └── pi0/50000/{params,assets,train_state}/
+    └── BiCoord_pi05/                # Future Pi0.5 fine-tuning outputs
 ```
 
 ```bash
@@ -104,6 +110,8 @@ background textures, then overlays BiCoord's modified objects. It keeps archives
 and completion markers under ignored `assets/.archives`; repeated runs skip
 completed extraction. Set `HF_ENDPOINT` before running it to select a Hub
 endpoint. Public downloads do not require an account token.
+The final step runs the upstream embodiment configuration generator, producing
+the concrete cuRobo YAML files from the downloaded templates.
 
 `run_uv.sh` selects local `ckpts/pi05_base/params` for Pi0.5 initialization when
 available. `BICOORD_PI05_BASE_PARAMS` overrides this path. Without local weights
@@ -135,3 +143,10 @@ bash policy/pi0/eval.sh balance_roller demo_clean \
 
 The BiCoord release includes Pi0 single-task and multi-task checkpoints. Its
 `pi05` code directory does not imply a released BiCoord fine-tuned Pi0.5 model.
+
+Evaluation also accepts `--output_dir`, `--test_num` (default 100), and
+`--video_episodes` (default all; use 1 for only the first rollout video) through
+`script/eval_policy.py --overrides`. Configs, individual episode records, SR/SSR/TL
+metrics, and requested videos are retained in the chosen output directory.
+The default evaluation output directory is under `/tmp/bicoord-eval/`.
+These options do not change the policy or the default 100-rollout protocol.

@@ -6,8 +6,8 @@ workspace = repo.parent
 links = {
     repo / "data": workspace / "data/BiCoord",
     repo / "ckpts": workspace / "ckpts",
-    repo / "policy/pi0/checkpoints": workspace / "ckpts/BiCoord/pi0",
-    repo / "policy/pi05/checkpoints": workspace / "ckpts/BiCoord/pi05",
+    repo / "policy/pi0/checkpoints": workspace / "ckpts/BiCoord_pi0",
+    repo / "policy/pi05/checkpoints": workspace / "ckpts/BiCoord_pi05",
 }
 for link, target in links.items():
     target.mkdir(parents=True, exist_ok=True)

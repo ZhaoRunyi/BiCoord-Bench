@@ -3,8 +3,7 @@ set -euo pipefail
 repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 target=${1:-all}
 case "$target" in sim|pi0|pi05|all) ;; *) echo "Usage: $0 [sim|pi0|pi05|all]" >&2; exit 2 ;; esac
-export UV_CACHE_DIR=${UV_CACHE_DIR:-"$(dirname "$repo_root")/.uv-cache"}
-export UV_PYTHON_INSTALL_DIR=${UV_PYTHON_INSTALL_DIR:-"$(dirname "$repo_root")/.uv-python"}
+source "$repo_root/script/uv_env.sh"
 export CUDA_HOME=${CUDA_HOME:-/usr/local/cuda-12.4}
 if [[ ! -x "$CUDA_HOME/bin/nvcc" ]]; then
     echo "Set CUDA_HOME to an installed CUDA 12.4 toolkit (nvcc required)." >&2
@@ -16,7 +15,7 @@ if [[ -z "${CC:-}" && -z "${CXX:-}" ]]; then
     if [[ ! -x "$compiler_root/bin/g++" ]]; then
         if [[ $(gcc -dumpversion | cut -d. -f1) -lt 9 ]]; then
             bash "$repo_root/script/setup_toolchain.sh"
-            compiler_root="$(dirname "$repo_root")/.toolchains/gcc9/root/opt/rh/gcc-toolset-9/root/usr"
+            compiler_root="${BICOORD_TOOLCHAIN_ROOT:-$workspace_root/gcc9}/root/opt/rh/gcc-toolset-9/root/usr"
         else
             compiler_root=""
         fi

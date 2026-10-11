@@ -12,8 +12,7 @@ if [[ ! -x "$project/.venv/bin/python" ]]; then
     echo "Run bash $repo_root/script/setup_uv.sh $env_name first." >&2
     exit 1
 fi
-export UV_CACHE_DIR=${UV_CACHE_DIR:-"$(dirname "$repo_root")/.uv-cache"}
-export UV_PYTHON_INSTALL_DIR=${UV_PYTHON_INSTALL_DIR:-"$(dirname "$repo_root")/.uv-python"}
+source "$repo_root/script/uv_env.sh"
 export PATH="$project/.venv/bin:$PATH"
 # imageio-ffmpeg supplies an executable even on hosts without system FFmpeg.
 if ! command -v ffmpeg >/dev/null 2>&1; then

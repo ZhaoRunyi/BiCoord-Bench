@@ -1,5 +1,7 @@
 """Download RoboTwin assets, then overlay the BiCoord object modifications."""
 import os
+import subprocess
+import sys
 from pathlib import Path
 import time
 import zipfile
@@ -41,8 +43,6 @@ for dataset, filenames in [
         marker.write_text(str(time.time()) + "\n")
         print(f"Extracted {dataset}/{filename} -> {destination}", flush=True)
 
-for config in (assets / "embodiments").glob("**/*.yml"):
-    content = config.read_text()
-    if "${ASSETS_PATH}" in content:
-        config.write_text(content.replace("${ASSETS_PATH}", str(repo)))
+subprocess.run([sys.executable, str(repo / "script/update_embodiment_config_path.py")],
+               cwd=repo, check=True)
 print("ASSET SETUP COMPLETE", flush=True)

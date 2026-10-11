@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 import runpy
 import sys
-import tempfile
+import json
 
 import torch
 
@@ -31,24 +31,32 @@ if sys.argv[1] in ["pi0", "pi05"]:
     import numpy as np
     from lerobot.common.datasets.video_utils import decode_video_frames
 
-    with tempfile.TemporaryDirectory(prefix="bicoord-uv-") as temporary:
-        clip = Path(temporary) / "clip.mp4"
-        with av.open(str(clip), "w") as container:
-            stream = container.add_stream("mpeg4", rate=10)
-            stream.width = stream.height = 32
-            stream.pix_fmt = "yuv420p"
-            for value in [0, 128]:
-                frame = av.VideoFrame.from_ndarray(np.full((32, 32, 3), value, dtype=np.uint8), format="rgb24")
-                for packet in stream.encode(frame):
-                    container.mux(packet)
-            for packet in stream.encode():
+    artifact_root = Path(os.environ.get("BICOORD_ARTIFACT_DIR", Path("/tmp/zvi-bicoord-uv-check")))
+    artifact_dir = artifact_root / sys.argv[1]
+    artifact_dir.mkdir(parents=True, exist_ok=True)
+    clip = artifact_dir / "clip.mp4"
+    with av.open(str(clip), "w") as container:
+        stream = container.add_stream("mpeg4", rate=10)
+        stream.width = stream.height = 32
+        stream.pix_fmt = "yuv420p"
+        for value in [0, 128]:
+            frame = av.VideoFrame.from_ndarray(np.full((32, 32, 3), value, dtype=np.uint8), format="rgb24")
+            for packet in stream.encode(frame):
                 container.mux(packet)
-        frames = decode_video_frames(clip, [0.0, 0.1], 0.02, backend="pyav")
-        assert frames.shape == (2, 3, 32, 32)
-        assert frames[1].mean() > frames[0].mean()
-        print("LeRobot PyAV video decoding OK")
+        for packet in stream.encode():
+            container.mux(packet)
+    frames = decode_video_frames(clip, [0.0, 0.1], 0.02, backend="pyav")
+    assert frames.shape == (2, 3, 32, 32)
+    assert frames[1].mean() > frames[0].mean()
+    print("LeRobot PyAV video decoding OK")
     name = "pi05_aloha_full_base" if sys.argv[1] == "pi05" else "pi0_base_aloha_robotwin_full"
     cfg = config.get_config(name)
     runpy.run_path(str(repo_root / "policy" / sys.argv[1] / "scripts/train.py"), run_name="bicoord_import_check")
     assert float(jax.numpy.sum(jax.numpy.ones(8))) == 8.0
     print(f"Policy config OK: {cfg.name}; JAX devices: {jax.devices()}")
+    (artifact_dir / "environment.json").write_text(json.dumps({
+        "python": sys.executable, "torch": torch.__version__,
+        "cuda": torch.version.cuda, "jax": jax.__version__,
+        "devices": [str(device) for device in jax.devices()],
+        "policy_config": cfg.name,
+    }, indent=2) + "\n")
