@@ -94,6 +94,7 @@ def create_dataset(data_config: _config.DataConfig, model_config: _model.BaseMod
     dataset_meta = lerobot_dataset.LeRobotDatasetMetadata(repo_id)
     dataset = lerobot_dataset.LeRobotDataset(
         data_config.repo_id,
+        video_backend="pyav",
         delta_timestamps={
             key: [t / dataset_meta.fps for t in range(model_config.action_horizon)]
             for key in data_config.action_sequence_keys

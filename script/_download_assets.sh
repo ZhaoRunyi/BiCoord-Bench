@@ -1,18 +1,4 @@
-cd assets
-# python _download.py
-
-# background_texture
-# unzip background_texture.zip
-# rm -rf background_texture.zip
-
-# embodiments
-unzip embodiments.zip
-rm -rf embodiments.zip
-
-# objects
-unzip objects.zip
-rm -rf objects.zip
-
-cd ..
-echo "Configuring Path ..."
-python ./script/update_embodiment_config_path.py
+#!/usr/bin/env bash
+set -euo pipefail
+repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+exec bash "$repo_root/script/run_uv.sh" sim python "$repo_root/script/setup_assets.py"

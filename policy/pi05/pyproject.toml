@@ -2,14 +2,14 @@
 name = "openpi"
 version = "0.1.0"
 description = "Physical Intelligence open source repo"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<3.12"
 license = { file = "LICENSE" }
 dependencies = [
     "pip==24.2",
     "augmax>=0.3.4",
     "dm-tree>=0.1.8",
     "einops>=0.8.0",
-    "equinox>=0.11.8",
+    "equinox==0.11.10",
     "flatbuffers>=24.3.25",
     "flax==0.10.2",
     "fsspec[gcs]>=2024.6.0",
@@ -20,18 +20,20 @@ dependencies = [
     "lerobot",
     "ml_collections==1.0.0",
     "numpy==1.26.4",
-    "numpydantic>=1.6.6",
-    "opencv-python>=4.10.0.84",
+    "numpydantic==1.6.6",
+    "opencv-python==4.10.0.84",
     "openpi-client",
     "orbax-checkpoint==0.11.13",
     "pillow>=11.0.0",
     "s3fs>=2024.9.0",
     "sentencepiece>=0.2.0",
-    "torch>=2.5.1",
+    "torch==2.6.0",
+    "torchvision==0.21.0",
     "tqdm-loggable>=0.2",
     "typing-extensions>=4.12.2",
     "tyro>=0.9.5",
     "wandb>=0.19.1",
+    "swanlab>=0.6",
     "boto3>=1.35.7",
     "types-boto3[boto3,s3]>=1.35.7",
     "filelock>=3.16.1",
@@ -43,15 +45,38 @@ dependencies = [
     "mplib==0.2.1",
     "gymnasium==0.29.1",
     "trimesh==4.4.3",
-    "open3d==0.19.0",
+    "open3d==0.18.0",
     "imageio",
     "pydantic",
-    "zarr",
+    "zarr>=2.18,<3",
     "openai",
     "huggingface_hub",
-    "ffmpeg",
+    "imageio-ffmpeg>=0.5.1",
+    "transforms3d==0.4.2",
+    "toppra==0.6.3",
+    "dill>=0.3.8",
+    "h5py>=3.11",
+    "pyyaml>=6",
+    "matplotlib>=3.9,<3.11",
+    "termcolor>=2",
+    "av==14.2.0",
+    "ninja>=1.11",
+    "setuptools>=75,<81",
+    "setuptools-scm>=8",
+    "wheel>=0.45",
 ]
 
+
+[project.optional-dependencies]
+cuda = ["nvidia-curobo==0.7.6", "pytorch3d==0.7.9", "warp-lang==1.2.1"]
+
+
+[tool.uv]
+# LeRobot's standalone Rerun viewer needs glibc >=2.31 (or NumPy 2).
+# Data conversion, training, and policy evaluation do not use this viewer.
+exclude-dependencies = ["rerun-sdk"]
+environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
+no-build-isolation-package = ["nvidia-curobo", "pytorch3d"]
 
 [project.urls]
 Repository = "https://github.com/Physical-Intelligence/openpi"
@@ -69,6 +94,10 @@ dev = [
 
 
 [tool.uv.sources]
+torch = { index = "pytorch-cu124" }
+torchvision = { index = "pytorch-cu124" }
+nvidia-curobo = { git = "https://github.com/NVlabs/curobo.git", rev = "2fbffc35225398cf9d5f382804faa9de2608753b" }
+pytorch3d = { git = "https://github.com/facebookresearch/pytorch3d.git", rev = "33824be3cbc87a7dd1db0f6a9a9de9ac81b2d0ba" }
 openpi-client = { workspace = true }
 lerobot = { git = "https://github.com/huggingface/lerobot", rev = "a445d9c9da6bea99a8972daa4fe1fdd053d711d2" }
 
@@ -140,3 +169,25 @@ build-backend = "hatchling.build"
 [tool.pytest.ini_options]
 markers = ["manual: should be run manually."]
 testpaths = ["src", "scripts", "packages"]
+
+[[tool.uv.index]]
+name = "pytorch-cu124"
+url = "https://download.pytorch.org/whl/cu124"
+explicit = true
+
+# These CUDA projects import torch during metadata generation. Static metadata
+# lets uv resolve the base environment before building them against its torch.
+[[tool.uv.dependency-metadata]]
+name = "nvidia-curobo"
+version = "0.7.6"
+requires-dist = [
+    "pybind11", "networkx", "numpy", "numpy-quaternion", "pyyaml",
+    "setuptools-scm>=6.2", "torch>=1.10", "trimesh", "yourdfpy>=0.0.53",
+    "warp-lang>=0.9.0", "scipy>=1.7.0", "tqdm", "wheel",
+    "importlib-resources", "scikit-image",
+]
+
+[[tool.uv.dependency-metadata]]
+name = "pytorch3d"
+version = "0.7.9"
+requires-dist = ["iopath"]

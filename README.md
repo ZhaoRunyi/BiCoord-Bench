@@ -17,16 +17,30 @@ Please see https://buaa-colalab.github.io/BiCoord/ for details.
 【Step 1】Clone the Repository
 
 ```
-git clone https://github.com/buaa-colalab/BiCoord-Bench.git
+git clone --branch uv https://github.com/ZhaoRunyi/BiCoord-Bench.git
 ```
 
 【Step 2】Install the RoboTwin 2.0 Environment
 
-Please follow [RoboTwin 2.0 Document (Usage - Install & Download)](https://robotwin-platform.github.io/doc/usage/robotwin-install.html) to install the RoboTwin 2.0 environment. 
+The `uv` branch provides Conda-free environments for simulation, Pi0, and Pi0.5:
+
+```bash
+# Requires uv, an NVIDIA driver, CUDA 12.4 nvcc, and GCC >= 9.
+bash script/setup_uv.sh all
+python3 script/link_workspace.py
+bash script/_download_assets.sh
+```
+
+See [the uv setup guide](docs/uv.md) for environment layout, checkpoint paths,
+commands, and GPU checks. The original [RoboTwin installation guide](https://robotwin-platform.github.io/doc/usage/robotwin-install.html)
+describes the underlying simulator and system requirements.
 
 【Step 3】Download Additional Assets
 
 We have modified some objects in the original RoboTwin-OD dataset. Please download the additional objects at https://huggingface.co/datasets/GradiusTwinbee/BiCoord/blob/main/objects.zip and extract them to `BiCoord-Bench/assets/objects`.
+
+`bash script/_download_assets.sh` downloads the base RoboTwin assets and applies
+these BiCoord object modifications automatically.
 
 【Step 4】For the env installation of specific policies, please refer to [RoboTwin 2.0 Usage Guide - RoboTwin 2.0 Offical Document](https://robotwin-platform.github.io/doc/usage/index.html)
 

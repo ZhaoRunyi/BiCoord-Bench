@@ -1,12 +1,6 @@
-#!/bin/bash
-
-task_name=${1}
-task_config=${2}
-gpu_id=${3}
-
-./script/.update_path.sh > /dev/null 2>&1
-
-export CUDA_VISIBLE_DEVICES=${gpu_id}
-
-PYTHONWARNINGS=ignore::UserWarning \
-python script/collect_data.py $task_name $task_config
+#!/usr/bin/env bash
+set -euo pipefail
+repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+cd "$repo_root"
+export CUDA_VISIBLE_DEVICES="${3:?gpu_id}"
+exec bash script/run_uv.sh sim python script/collect_data.py "${1:?task_name}" "${2:?task_config}"

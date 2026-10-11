@@ -42,3 +42,15 @@ policy/openvla-oft
 # policy/openvla-oft/data
 # policy/openvla-oft/workdir
 policy/GO1/processed_data
+# uv environments and generated runtime state
+.venv/
+.uv-cache/
+.uv-python/
+.build/
+*.egg-info/
+policy/pi05/processed_data/
+policy/pi05/training_data/
+/data
+/ckpts
+/policy/pi0/checkpoints
+/policy/pi05/checkpoints

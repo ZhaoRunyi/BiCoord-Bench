@@ -1,0 +1,76 @@
+[project]
+name = "bicoord-bench"
+version = "0.1.0"
+description = "BiCoord simulation environment"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "torch==2.6.0",
+    "torchvision==0.21.0",
+    "numpy==1.26.4",
+    "scipy==1.10.1",
+    "sapien==3.0.0b1",
+    "mplib==0.2.1",
+    "transforms3d==0.4.2",
+    "toppra==0.6.3",
+    "gymnasium==0.29.1",
+    "trimesh==4.4.3",
+    "open3d==0.18.0",
+    "opencv-python==4.10.0.84",
+    "h5py>=3.11",
+    "imageio>=2.34.2",
+    "imageio-ffmpeg>=0.5.1",
+    "pillow>=10",
+    "pyyaml>=6",
+    "pydantic>=2",
+    "zarr>=2.18,<3",
+    "openai>=1",
+    "azure-ai-inference>=1.0.0b9",
+    "huggingface-hub>=0.28.1,<1",
+    "pyglet<2",
+    "wandb>=0.19.1",
+    "moviepy<2",
+    "termcolor>=2",
+    "av>=12",
+    "matplotlib>=3.9,<3.11",
+    "dill>=0.3.8",
+    "ninja>=1.11",
+    "setuptools>=75,<81",
+    "setuptools-scm>=8",
+    "wheel>=0.45",
+]
+
+[project.optional-dependencies]
+cuda = ["nvidia-curobo==0.7.6", "pytorch3d==0.7.9", "warp-lang==1.2.1"]
+
+[tool.uv]
+package = false
+environments = ["sys_platform == 'linux' and platform_machine == 'x86_64'"]
+no-build-isolation-package = ["nvidia-curobo", "pytorch3d"]
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu124" }
+torchvision = { index = "pytorch-cu124" }
+nvidia-curobo = { git = "https://github.com/NVlabs/curobo.git", rev = "2fbffc35225398cf9d5f382804faa9de2608753b" }
+pytorch3d = { git = "https://github.com/facebookresearch/pytorch3d.git", rev = "33824be3cbc87a7dd1db0f6a9a9de9ac81b2d0ba" }
+
+[[tool.uv.index]]
+name = "pytorch-cu124"
+url = "https://download.pytorch.org/whl/cu124"
+explicit = true
+
+# These CUDA projects import torch during metadata generation. Static metadata
+# lets uv resolve the base environment before building them against its torch.
+[[tool.uv.dependency-metadata]]
+name = "nvidia-curobo"
+version = "0.7.6"
+requires-dist = [
+    "pybind11", "networkx", "numpy", "numpy-quaternion", "pyyaml",
+    "setuptools-scm>=6.2", "torch>=1.10", "trimesh", "yourdfpy>=0.0.53",
+    "warp-lang>=0.9.0", "scipy>=1.7.0", "tqdm", "wheel",
+    "importlib-resources", "scikit-image",
+]
+
+[[tool.uv.dependency-metadata]]
+name = "pytorch3d"
+version = "0.7.9"
+requires-dist = ["iopath"]

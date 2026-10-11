@@ -1,3 +1,4 @@
+import os
 """See _CONFIGS for the list of available configs."""
 
 import abc
@@ -576,7 +577,7 @@ _CONFIGS = [
                 prompt_from_task=True,
             ),
         ),
-        weight_loader=weight_loaders.CheckpointWeightLoader("gs://openpi-assets/checkpoints/pi05_base/params"),
+        weight_loader=weight_loaders.CheckpointWeightLoader(os.environ.get("BICOORD_PI05_BASE_PARAMS", "gs://openpi-assets/checkpoints/pi05_base/params")),
         num_train_steps=20_000,
         batch_size=64,
         fsdp_devices=2,  # refer line 359
