@@ -1,4 +1,5 @@
 import sys
+from pathlib import Path
 
 import os
 import h5py
@@ -161,18 +162,20 @@ if __name__ == "__main__":
         default=50,
         help="Number of episodes to process (e.g., 50)",
     )
+    parser.add_argument("--data-root", type=Path, default=Path(__file__).resolve().parents[4] / "data/BiCoord")
+    parser.add_argument("--output-root", type=Path, default=Path(__file__).resolve().parents[1] / "processed_data")
     args = parser.parse_args()
 
     task_name = args.task_name
     setting = args.setting
     expert_data_num = args.expert_data_num
 
-    load_dir = os.path.join("../../data", str(task_name), str(setting))
+    load_dir = str(args.data_root.expanduser().resolve() / task_name / setting)
 
     begin = 0
     print(f'read data from path:{os.path.join("data", load_dir)}')
 
-    target_dir = f"processed_data/{task_name}-{setting}-{expert_data_num}"
+    target_dir = str(args.output_root.expanduser().resolve() / f"{task_name}-{setting}-{expert_data_num}")
     begin = data_transform(
         load_dir,
         expert_data_num,

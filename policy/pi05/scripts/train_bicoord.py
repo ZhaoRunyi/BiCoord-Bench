@@ -9,6 +9,7 @@ import gc
 import hashlib
 import json
 import logging
+import netrc
 import os
 import signal
 from pathlib import Path
@@ -19,6 +20,7 @@ import jax
 from jax.experimental import multihost_utils
 import numpy as np
 import orbax.checkpoint as ocp
+import wandb
 
 import train as upstream
 from openpi.shared import array_typing as at
@@ -197,6 +199,28 @@ def run(args):
         state = restore(checkpoint_manager, state, latest)
     start_step = int(state.step)
     print(json.dumps(dict(phase="initialized",step=start_step)),flush=True)
+    tracking = None
+    tensorboard = None
+    if args.mode == "train" and jax.process_index() == 0:
+        os.environ.setdefault("NETRC", str(bc.WS.parent / ".wandb/netrc"))
+        try:
+            auth = netrc.netrc(os.environ["NETRC"]).authenticators("api.wandb.ai")
+        except (FileNotFoundError, netrc.NetrcParseError):
+            auth = None
+        if auth and auth[2]:
+            os.environ.setdefault("WANDB_API_KEY", auth[2])
+        mode = "online" if os.environ.get("WANDB_API_KEY") else "offline"
+        identity = output / "wandb_id.txt"
+        tracking = wandb.init(project=os.environ.get("WANDB_PROJECT", "openpi_bicoord"),
+                              id=identity.read_text().strip() if identity.exists() else None,
+                              resume="allow", mode=mode, dir=str(output), name=bc.NAME,
+                              config=recipe, settings=wandb.Settings(x_disable_stats=True,
+                              console="off", disable_git=True))
+        identity.write_text(tracking.id + "\n")
+        from tensorboard.compat.proto.event_pb2 import Event
+        from tensorboard.compat.proto.summary_pb2 import Summary
+        from tensorboard.summary.writer.event_file_writer import EventFileWriter
+        tensorboard = EventFileWriter(str(output / "tensorboard"))
     loader = bc.Loader(config, data_sharding, start_step=start_step, prefetch=args.prefetch)
     # Multihost JAX operations must be submitted in the same order on all ranks.
     # Prefetch only NumPy batches there; global array construction stays on the
@@ -278,7 +302,19 @@ def run(args):
             print(json.dumps(dict(step=step+1, seconds=elapsed, **metrics)), flush=True)
             if jax.process_index() == 0:
                 with (output / "metrics.jsonl").open("a") as stream:
-                    stream.write(json.dumps(dict(step=step+1, **metrics))+"\n")
+                    stream.write(json.dumps(dict(step=step+1, seconds=elapsed, **metrics))+"\n")
+                if tracking is not None:
+                    schedule = config.lr_schedule
+                    initial = schedule.peak_lr / (schedule.warmup_steps + 1)
+                    values = {"train/"+key: value for key, value in metrics.items()}
+                    values.update({"train/step_seconds": elapsed,
+                                   "train/learning_rate_derived": initial + (schedule.peak_lr-initial)
+                                   * min(step/schedule.warmup_steps, 1)})
+                    tracking.log(values, step=step+1)
+                    tensorboard.add_event(Event(wall_time=time.time(), step=step+1,
+                              summary=Summary(value=[Summary.Value(tag=key, simple_value=value)
+                              for key, value in values.items()])))
+                    tensorboard.flush()
     if args.mode == "benchmark":
         result = dict(mode="benchmark", fsdp=args.fsdp, workers=args.workers,
                       prefetch=args.prefetch, device_prefetch=args.device_prefetch,
@@ -294,6 +330,10 @@ def run(args):
             bc.atomic_json(output / "result.json", result)
     else:
         checkpoint_manager.close()
+        if tracking is not None:
+            tracking.summary.update(dict(completed_steps=stop, checkpoint_path=str(bc.ROOT / "newest")))
+            tracking.finish()
+            tensorboard.close()
         if jax.process_index() == 0:
             bc.atomic_json(bc.ROOT / "status.json", dict(state="trained", completed_steps=stop,
                                                         newest=str(bc.ROOT / "newest"), updated_unix=time.time()))

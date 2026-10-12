@@ -10,7 +10,8 @@ fi
 export CUDA_VISIBLE_DEVICES="$6"
 export XLA_PYTHON_CLIENT_MEM_FRACTION=${XLA_PYTHON_CLIENT_MEM_FRACTION:-0.4}
 cd "$repo_root"
-exec bash script/run_uv.sh "$policy_name" python script/eval_policy.py \
+source /home/MLTL-INTERN/shaoyang/zvi/.uv/env.sh
+exec uv run --project "$policy_dir" --no-sync python script/eval_policy.py \
     --config "policy/$policy_name/deploy_policy.yml" --overrides \
     --task_name "$1" --task_config "$2" --train_config_name "$3" \
     --model_name "$4" --ckpt_setting "$4" --seed "$5" --policy_name "$policy_name"

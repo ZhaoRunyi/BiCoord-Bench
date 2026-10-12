@@ -1,6 +1,7 @@
 import sys
 import os
 import subprocess
+import shutil
 
 sys.path.append("./")
 sys.path.append(f"./policy")
@@ -310,9 +311,13 @@ def eval_policy(task_name,
         TASK_ENV.set_instruction(instruction=instruction)  # set language instruction
 
         if TASK_ENV.eval_video_path is not None:
+            ffmpeg_binary = shutil.which("ffmpeg")
+            if ffmpeg_binary is None:
+                import imageio_ffmpeg
+                ffmpeg_binary = imageio_ffmpeg.get_ffmpeg_exe()
             ffmpeg = subprocess.Popen(
                 [
-                    "ffmpeg",
+                    ffmpeg_binary,
                     "-y",
                     "-loglevel",
                     "error",

@@ -52,7 +52,6 @@ def get_config():
                                                  decay_steps=1_000_000, decay_lr=5e-5),
         ema_decay=0.999,
         assets_base_dir=str(ROOT / "assets"), checkpoint_base_dir=str(ROOT),
-        wandb_enabled=False,
     )
 
 

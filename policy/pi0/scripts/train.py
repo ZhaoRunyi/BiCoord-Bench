@@ -1,6 +1,7 @@
 import dataclasses
 import functools
 import logging
+import os
 import platform
 from typing import Any
 
@@ -13,7 +14,7 @@ import jax.experimental
 import jax.numpy as jnp
 import optax
 import tqdm_loggable.auto as tqdm
-import swanlab as wandb
+import wandb
 
 import openpi.models.model as _model
 import openpi.shared.array_typing as at
@@ -67,16 +68,17 @@ def init_wandb(
     ckpt_dir = config.checkpoint_dir
     if not ckpt_dir.exists():
         raise FileNotFoundError(f"Checkpoint directory {ckpt_dir} does not exist.")
+    project = os.environ.get("WANDB_PROJECT", config.project_name)
     if resuming:
         run_id = (ckpt_dir / "wandb_id.txt").read_text().strip()
-        wandb.init(id=run_id, resume="must", project=config.project_name)
+        wandb.init(id=run_id, resume="must", project=project)
     else:
         wandb.init(
             name=config.exp_name,
             config=dataclasses.asdict(config),
-            project=config.project_name,
+            project=project,
         )
-        # (ckpt_dir / "wandb_id.txt").write_text(wandb.run.id)
+        (ckpt_dir / "wandb_id.txt").write_text(wandb.run.id)
 
     if log_code:
         wandb.run.log_code(epath.Path(__file__).parent.parent)

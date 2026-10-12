@@ -20,23 +20,59 @@ Please see https://buaa-colalab.github.io/BiCoord/ for details.
 git clone --branch uv https://github.com/ZhaoRunyi/BiCoord-Bench.git
 ```
 
-【Step 2】Install the RoboTwin 2.0 Environment
+【Step 2】Build environments (uv first; original Conda option below)
 
-The `uv` branch provides Conda-free environments for simulation, Pi0, and Pi0.5:
+The simulation, π0 and π0.5 environments remain separate because their checkpoint
+libraries differ. Their dependencies are committed in `pyproject.toml` / `uv.lock`.
+Use CUDA 12.4 with `nvcc`, GCC ≥9 and the workspace uv installation:
 
 ```bash
-# Requires uv, an NVIDIA driver, CUDA 12.4 nvcc, and GCC >= 9.
-bash script/setup_uv.sh all
-python3 script/link_workspace.py
+source /home/MLTL-INTERN/shaoyang/zvi/.uv/env.sh
+cd /home/MLTL-INTERN/shaoyang/zvi/mul_ttt_ws/BiCoord-Bench
+export CUDA_HOME=/usr/local/cuda-12.4
+export CC=/home/MLTL-INTERN/shaoyang/zvi/gcc9/root/opt/rh/gcc-toolset-9/root/usr/bin/gcc
+export CXX=/home/MLTL-INTERN/shaoyang/zvi/gcc9/root/opt/rh/gcc-toolset-9/root/usr/bin/g++
+export PATH="$CUDA_HOME/bin:$(dirname "$CXX"):$PATH"
+export TORCH_CUDA_ARCH_LIST=8.0 MAX_JOBS=4 FORCE_CUDA=1
+export SETUPTOOLS_SCM_PRETEND_VERSION_FOR_NVIDIA_CUROBO=0.7.6
+export GIT_LFS_SKIP_SMUDGE=1
+uv python install 3.11
+for project in "$PWD" "$PWD/policy/pi0" "$PWD/policy/pi05"; do
+    uv sync --project "$project" --frozen --no-dev
+    uv sync --project "$project" --frozen --no-dev --extra cuda
+    uv run --project "$project" --no-sync bash "$PWD/script/_install.sh" --patch-only
+done
+uv run --no-sync bash script/_download_assets.sh
+```
+
+For another host, set `CC` and `CXX` to its GCC ≥9 compiler. Optional EL8 GCC
+installation commands and dependency explanations are in [docs/uv.md](docs/uv.md).
+The existing `_install.sh --patch-only` applies RoboTwin's SAPIEN/MPLib adjustments
+without modifying uv's cached wheel files. `_download_assets.sh` downloads the
+RoboTwin assets and overlays BiCoord objects. No additional setup wrappers are used.
+
+Check the prepared environments without a GPU workload:
+
+```bash
+for project in "$PWD" "$PWD/policy/pi0" "$PWD/policy/pi05"; do
+    JAX_PLATFORMS=cpu uv run --project "$project" --no-sync python -c 'import sapien, mplib, torch, curobo, pytorch3d; print("imports OK")'
+done
+```
+
+For the original **Conda** installation path, follow the
+[RoboTwin installation guide](https://robotwin-platform.github.io/doc/usage/robotwin-install.html).
+The existing pip installer remains available inside the activated environment:
+
+```bash
+conda create -n BiCoord python=3.10 -y
+conda activate BiCoord
+bash script/_install.sh
 bash script/_download_assets.sh
 ```
 
-See [the uv setup guide](docs/uv.md) for environment layout, checkpoint paths,
-commands, and GPU checks. The original [RoboTwin installation guide](https://robotwin-platform.github.io/doc/usage/robotwin-install.html)
-describes the underlying simulator and system requirements.
-
-See [the all-task π0.5 training guide](docs/pi05_bicoord.md) for the JAX recipe,
-physical input conventions, resumable checkpoints, PBS benchmarks and evaluation.
+See [the all-task π0.5 guide](docs/pi05_bicoord.md) for the validated JAX training
+recipe and standard evaluation command. PBS submission and experiment monitoring
+belong outside the code repository.
 
 【Step 3】Download Additional Assets
 
@@ -51,12 +87,12 @@ In our practice, we install the RoboTwin 2.0 Environment first, and then install
 
 # Data Preparation
 
-We recommend to download official training data at https://huggingface.co/datasets/GradiusTwinbee/BiCoord and put data under `BiCoord-Bench/data`. Otherwise, you can generate data following the guidance at [Collect Data - RoboTwin 2.0 Offical Document](https://robotwin-platform.github.io/doc/usage/collect-data.html), and run correspnding  `split_stages.py` to obtain stage information.
+We recommend to download official training data at https://huggingface.co/datasets/GradiusTwinbee/BiCoord and keep data at `/home/MLTL-INTERN/shaoyang/zvi/mul_ttt_ws/data/BiCoord`. Otherwise, you can generate data following the guidance at [Collect Data - RoboTwin 2.0 Offical Document](https://robotwin-platform.github.io/doc/usage/collect-data.html), and run correspnding  `split_stages.py` to obtain stage information.
 
-After preparation,  `BiCoord-Bench/data` should look like
+After preparation,  `/home/MLTL-INTERN/shaoyang/zvi/mul_ttt_ws/data/BiCoord` should look like
 
 ```
-data/
+/home/MLTL-INTERN/shaoyang/zvi/mul_ttt_ws/data/BiCoord/
 ├── balance_roller/
 │   └── demo_clean/
 │       ├── _traj_data/
@@ -73,11 +109,27 @@ data/
 ├── ......
 ```
 
-After get data prepared under  `BiCoord-Bench/data`, you need to convert the data into the training format according to the policy you choose. For data conversion of baseline policies, please follow the guidance at [RoboTwin 2.0 Usage Guide - RoboTwin 2.0 Offical Document](https://robotwin-platform.github.io/doc/usage/index.html).
+After preparing data at the absolute path above, you need to convert the data into the training format according to the policy you choose. For data conversion of baseline policies, please follow the guidance at [RoboTwin 2.0 Usage Guide - RoboTwin 2.0 Offical Document](https://robotwin-platform.github.io/doc/usage/index.html).
 
 # Training & Evaluation
 
-Please follow [RoboTwin 2.0 Usage Guide - RoboTwin 2.0 Offical Document](https://robotwin-platform.github.io/doc/usage/index.html).
+Use the existing standard entrypoint `script/eval_policy.py`, with absolute
+checkpoint and output paths. For example, within a PBS GPU allocation:
+
+```bash
+source /home/MLTL-INTERN/shaoyang/zvi/.uv/env.sh
+cd /home/MLTL-INTERN/shaoyang/zvi/mul_ttt_ws/BiCoord-Bench
+uv run --project "$PWD/policy/pi05" --no-sync python script/eval_policy.py \
+    --config policy/pi05/deploy_policy.yml --overrides \
+    --task_name balance_roller --task_config demo_clean --policy_name pi05_bicoord \
+    --checkpoint_dir /home/MLTL-INTERN/shaoyang/zvi/mul_ttt_ws/ckpts/BiCoord_pi05/checkpoints/50000 \
+    --ckpt_setting pi05_all_50000 --seed 0 --test_num 100 --resume True \
+    --video_episodes 1 --output_dir /tmp/bicoord-pi05-eval/balance_roller
+```
+
+Task-list iteration, PBS resource allocation and aggregated reports stay in the
+external experiment directory. Dataset/checkpoint symlinks are not required.
+The existing π0/π0.5 conversion scripts accept `--data-root` and `--output-root`.
 
 For convenience, we also provide all checkpoints of baseline policies (DP, RDT, OpenVLA-OFT, Pi0 under single&multi task setting) at https://huggingface.co/Oshwiciqwq/BiCoord-checkpoints.
 

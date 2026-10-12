@@ -4,6 +4,7 @@
 #!/usr/bin/python3
 """
 import json
+from pathlib import Path
 import sys
 import jax
 import numpy as np
@@ -26,19 +27,20 @@ import os
 
 class PI0:
 
-    def __init__(self, train_config_name, model_name, checkpoint_id, pi0_step):
+    def __init__(self, train_config_name, model_name, checkpoint_id, pi0_step, checkpoint_dir=None):
         self.train_config_name = train_config_name
         self.model_name = model_name
         self.checkpoint_id = checkpoint_id
+        checkpoint = Path(checkpoint_dir).expanduser().resolve() if checkpoint_dir else Path(__file__).resolve().parents[3] / "ckpts/BiCoord_pi05" / train_config_name / model_name / str(checkpoint_id)
 
-        specified_path = f"policy/pi05/checkpoints/{self.train_config_name}/{self.model_name}/{self.checkpoint_id}/assets/"
+        specified_path = checkpoint / "assets"
         entries = os.listdir(specified_path)
         assets_id = entries[0]
 
         config = _config.get_config(self.train_config_name)
         self.policy = _policy_config.create_trained_policy(
             config,
-            f"policy/pi05/checkpoints/{self.train_config_name}/{self.model_name}/{self.checkpoint_id}",
+            str(checkpoint),
             robotwin_repo_id=assets_id,
             )
         print("loading model success!")
