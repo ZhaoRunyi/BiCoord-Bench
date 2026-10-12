@@ -34,7 +34,12 @@ def credential_available():
         return True
     try:
         auth = netrc.netrc(os.environ.get("NETRC", str(Path.home()/".netrc"))).authenticators("api.wandb.ai")
-        return bool(auth and auth[2])
+        if auth and auth[2]:
+            # Rehydrate the environment on every process start. The key stays
+            # in process memory, never in command arguments or metric files.
+            os.environ["WANDB_API_KEY"] = auth[2]
+            return True
+        return False
     except (FileNotFoundError, netrc.NetrcParseError):
         return False
 

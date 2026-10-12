@@ -62,6 +62,9 @@ Credentials can be kept outside the repository in `zvi/.wandb/netrc` (directory
 mode 700, file mode 600). Set `NETRC` to that path when running the policy
 environment's `wandb login --cloud --relogin`; enter the key at its hidden
 interactive prompt. Never put a key in command arguments, source or logs.
+The tracker also loads this saved credential into `WANDB_API_KEY` in process
+memory. For interactive tools, source `zvi/.wandb/env.sh` to export the same
+key and `WANDB_PROJECT=openpi_bicoord`; no second plaintext key file is needed.
 
 Logging artifacts: `/tmp/bicoord-pi05-training-20261011/tracking/`.
 TensorBoard logs are under its `tensorboard/` directory; `status.json` records
