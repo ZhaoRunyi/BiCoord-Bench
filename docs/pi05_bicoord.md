@@ -42,6 +42,33 @@ Cross-host execution submits all JAX operations on the main thread and prefetche
 
 ## Evaluation and reference
 
+### Logging the completed run
+
+The original 50k run recorded JSONL rather than W&B or TensorBoard events.
+`script/pi05_tracking.py` backfills its 501 recorded losses and recorded step
+durations into both formats, without restarting training. Learning rate is
+explicitly labelled as derived from the saved recipe at optimizer index
+`completed_steps - 1`. Missing intermediate losses, gradients and original
+per-point wall times are not fabricated. Backfilled events have export times.
+
+The W&B project is `openpi_bicoord`. Without credentials, the training run is
+saved offline. With `--watch`, a CPU-only screen process polls the existing
+PBS evaluation every minute; after login it syncs that same run and appends
+partial task results, the inference video and final evaluation metrics.
+Partial task rates are labelled `sr_partial`/`ssr_partial`; complete aggregate
+rates are published only after all 18 tasks finish. Checkpoints are not uploaded.
+
+Credentials can be kept outside the repository in `zvi/.wandb/netrc` (directory
+mode 700, file mode 600). Set `NETRC` to that path when running the policy
+environment's `wandb login --cloud --relogin`; enter the key at its hidden
+interactive prompt. Never put a key in command arguments, source or logs.
+
+Logging artifacts: `/tmp/bicoord-pi05-training-20261011/tracking/`.
+TensorBoard logs are under its `tensorboard/` directory; `status.json` records
+the run ID, upload status and online run URL. A localhost-only TensorBoard
+server on the submit host can serve these events with `--load_fast=false`.
+Use an SSH tunnel or VS Code port forwarding to view port 6006.
+
 After training, run all 18 tasks ×100 rollouts using the repository's original evaluation success predicates and unseen instructions. Save one balance_roller inference video. Report mean task SR, SSR and successful-trajectory length.
 
 CogWAM is the requested community reference: [paper](https://arxiv.org/html/2609.37721), [code](https://github.com/HorizonRobotics/CogWAM). It reports a multi-task BiCoord π0.5 baseline of SR 35.6%, SSR 50.8%. Its released code/checkpoint targets RoboDojo, and its π0.5 BiCoord training hyperparameters are not disclosed; CogWAM's own RoboDojo training settings are not substituted for the requested openpi recipe. Single-task BiCoord π0.5 results were not located.
